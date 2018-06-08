@@ -113,6 +113,7 @@ function CreatePost()
  echo   '    # This is an upgrade.'  >> $NEWSPEC_FILE
  echo   '    # First remove current link.'  >> $NEWSPEC_FILE
  echo '      rm' "$APP_DIR/$STANDARD_NAME-current"  >> $NEWSPEC_FILE
+ echo '      ln -s ' "$APP_DIR/$STANDARD_NAME-current"  >> $NEWSPEC_FILE
  echo '   ;;'  >> $NEWSPEC_FILE
  echo esac >> $NEWSPEC_FILE
 }
