@@ -53,7 +53,7 @@ function Extract()
       echo "Removing directory $DELETE_DIRS/$z"
       rm -rf "$DELETE_DIRS/$z"
       mv "$z" "$DELETE_DIRS"
-    elif [ -f "$z" ] && [ ${z: -4} == ".tar" ]
+    elif [ -f "$z" ] && [ ${z: -4} == ".tar" ] || [ ${z: -4} == ".tar.gz" ]
     then
       echo "Un-tarring file $z in $(pwd)"
       tar -xf "$z"
