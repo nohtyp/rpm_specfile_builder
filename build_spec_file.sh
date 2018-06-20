@@ -129,11 +129,11 @@ function CreatePost()
  echo '  1)'            >> $NEWSPEC_FILE
  echo '      echo "This is from post value 1: $1"' >> $NEWSPEC_FILE
  echo "      echo Creating user for $USER" >> $NEWSPEC_FILE
- echo '      ln -s '"$APP_DIR/$POST" "$APP_DIR/current"  >> $NEWSPEC_FILE
+ echo '      ln -s '"$APP_DIR/$USER/$POST" "$APP_DIR/$USER/current"  >> $NEWSPEC_FILE
  echo '   ;;' >> $NEWSPEC_FILE
  echo '  2)'  >> $NEWSPEC_FILE
  echo '      echo "This is from post value 2: $1"' >> $NEWSPEC_FILE
- echo '      ln -s '"$APP_DIR/$POST" "$APP_DIR/current"  >> $NEWSPEC_FILE
+ echo '      ln -s '"$APP_DIR/$USER/$POST" "$APP_DIR/$USER/current"  >> $NEWSPEC_FILE
  echo '   ;;'  >> $NEWSPEC_FILE
  echo esac >> $NEWSPEC_FILE
 }
@@ -214,9 +214,9 @@ function CreatePre()
  echo '  2)'  >> $NEWSPEC_FILE
  echo '      echo "This is from pre value 2: $1"' >> $NEWSPEC_FILE
  echo "      echo Shutting down $USER server.." >> $NEWSPEC_FILE
- echo "      $APP_DIR/current/bin/shutdown.sh" >> $NEWSPEC_FILE
+ echo "      $APP_DIR/$USER/current/bin/shutdown.sh" >> $NEWSPEC_FILE
  echo '      sleep 10' >> $NEWSPEC_FILE
- echo '      rm ' "$APP_DIR/current"  >> $NEWSPEC_FILE
+ echo '      rm ' "$APP_DIR/$USER/current"  >> $NEWSPEC_FILE
  echo '   ;;'  >> $NEWSPEC_FILE
  echo esac >> $NEWSPEC_FILE
 }
