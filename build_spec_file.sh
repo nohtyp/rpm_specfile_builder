@@ -1,12 +1,13 @@
 #!/bin/bash -x
 
-NEWSPEC_FILE=~/rpmbuild/SPECS/jira.spec
-APP_DIR="/opt/nsauto/nstools/local/share"
+NEWSPEC_FILE=$RPM_BUILD_DIR/$NEWSPEC_PATH/$NEWSPEC_FILE
+APP_DIR=$APP_DIR
 TEMP_FILES='install_dirs files'
-URL='https://atlassian.com'
+URL=$URL
 DELETE_DIRS=../delete_dirs
-SUMMARY='This is a test package'
-LICENSE='This is a test license'
+SOURCE_DIR=$RPM_BUILD_DIR/$NEWSPEC_SOURCE
+SUMMARY=$SUMMARY
+LICENSE=$LICENSE
 
 function CreateValue()
 {
@@ -17,12 +18,15 @@ function CreateValue()
 function CreateSpec()
 {
   mkdir -p "$DELETE_DIRS"
+  echo "Creating spec file $NEWSPEC_FILE"
   touch "$NEWSPEC_FILE"
 }
 
 function CleanUp()
 {
-  rm "$NEWSPEC_FILE" 2>/dev/null
+  MyCleanup=$1
+  rm "$NEWSPEC_FILE" 2> /dev/null
+  rm "$MyCleanup" 2> /dev/null
   rm "$TEMP_FILES" 2>/dev/null
 }
 
@@ -35,9 +39,8 @@ function CreateSource()
 function CreateSetup()
 {
   MySetUp=$1
-  if [ ${MySetUp:0:3} == "jre" ]
+  if [ ${MySetUp:0:3} = "jre" ]
   then
-    echo "This is a jre package"
     echo %setup -n %{name}%{version} >> $NEWSPEC_FILE
   else
     echo %setup -n %{name}-%{version}-"${VALUE}" >> $NEWSPEC_FILE
@@ -48,15 +51,10 @@ function Extract()
 {
   for z in $(ls -1)
   do
-    if [ -d "$z" ]
-    then
-      echo "Removing directory $DELETE_DIRS/$z"
-      rm -rf "$DELETE_DIRS/$z"
-      mv "$z" "$DELETE_DIRS"
-    elif [ -f "$z" ] && [ ${z: -4} == ".tar" ] || [ ${z: -4} == ".tar.gz" ]
+    if [ -f "$z" ] && [ "${z: -4}" = ".tar" ] || [ "${z: -7}" = ".tar.gz" ]
     then
       echo "Un-tarring file $z in $(pwd)"
-      tar -xf "$z"
+      tar -xvf "$z"
       rm "$z"
     fi
   done
@@ -67,14 +65,16 @@ function CreateTar()
   TAR_CREATE=$1
   echo "Tarring up file $TAR_CREATE"
   tar -cf $TAR_CREATE.tar $TAR_CREATE
+  echo "Moving $TAR_CREATE.tar to $SOURCE_DIR"
+  mv -f $TAR_CREATE.tar $SOURCE_DIR
+
 }
 
 function CreateName()
 {
   MyName=$1
-  if [ ${MyName:0:3} == "jre" ]
+  if [ ${MyName:0:3} = "jre" ]
   then
-    echo "This is a jre package with shorter name."
     echo "Name:           " ${MyName:0:3} >> $NEWSPEC_FILE
     echo "AutoReqProv:     no" >> $NEWSPEC_FILE
   else
@@ -85,7 +85,7 @@ function CreateName()
 function CreateVersion()
 {
   MyVersion=$1
-  if [ ${MyVersion:0:3} == "jre" ]
+  if [ ${MyVersion:0:3} = "jre" ]
   then
     #this regex will get version number
     echo "Version:        " $(echo "$MyVersion"|sed 's/^[a-z-]*//') >> $NEWSPEC_FILE
@@ -97,56 +97,102 @@ function CreateVersion()
 function CreatePost()
 {
  POST=$1
- if [ ${POST:0:3} == "jre" ]
+ if [ ${POST:0:3} = "jre" ]
  then 
    STANDARD_NAME=${POST:0:3} 
  else
-   STANDARD_NAME=$(echo "$POST"|sed 's/[[:digit:]].//g')
+   STANDARD_NAME=$(echo "$POST"| sed 's/\W//g')
  fi
  echo '%post'  >> $NEWSPEC_FILE
  echo case '"$1"' in  >> $NEWSPEC_FILE
  echo '  1)'            >> $NEWSPEC_FILE
- echo '      # This is an initial install.' >> $NEWSPEC_FILE
+ echo '      echo "This is from post value 1: $1"' >> $NEWSPEC_FILE
+ echo '      echo "Creating user for jira"' >> $NEWSPEC_FILE
  echo '      ln -s '"$APP_DIR/$POST" "$APP_DIR/$STANDARD_NAME-current"  >> $NEWSPEC_FILE
  echo '   ;;' >> $NEWSPEC_FILE
  echo '  2)'  >> $NEWSPEC_FILE
- echo   '    # This is an upgrade.'  >> $NEWSPEC_FILE
- echo   '    # First remove current link.'  >> $NEWSPEC_FILE
- echo '      rm' "$APP_DIR/$STANDARD_NAME-current"  >> $NEWSPEC_FILE
- echo '      ln -s ' "$APP_DIR/$STANDARD_NAME-current"  >> $NEWSPEC_FILE
+ echo '      echo "This is from post value 2: $1"' >> $NEWSPEC_FILE
+ echo '      ln -s '"$APP_DIR/$POST" "$APP_DIR/$STANDARD_NAME-current"  >> $NEWSPEC_FILE
  echo '   ;;'  >> $NEWSPEC_FILE
  echo esac >> $NEWSPEC_FILE
 }
+
+
+function CreatePostUn()
+{
+ POSTUN=$1
+ if [ ${POSTUN:0:3} = "jre" ]
+ then 
+   STANDARD_NAME=${POSTUN:0:3} 
+ else
+   STANDARD_NAME=$(echo "$POSTUN"| sed 's/\W//g')
+ fi
+ echo '%postun'  >> $NEWSPEC_FILE
+ echo case '"$1"' in  >> $NEWSPEC_FILE
+ echo '  1)'            >> $NEWSPEC_FILE
+ echo '      echo "This is postun value 1: $1"' >> $NEWSPEC_FILE
+ echo '   ;;' >> $NEWSPEC_FILE
+ echo '  2)'  >> $NEWSPEC_FILE
+ echo '      echo "This is postun value 2: $1"' >> $NEWSPEC_FILE
+ echo '   ;;'  >> $NEWSPEC_FILE
+ echo esac >> $NEWSPEC_FILE
+}
+
 
 function CreatePreUn()
 {
  PREUN=$1
- if [ ${PREUN:0:3} == "jre" ]
+ if [ ${PREUN:0:3} = "jre" ]
  then  
    STANDARD_NAME=${PREUN:0:3}
  else
-   STANDARD_NAME=$(echo "$PREUN"|sed 's/[[:digit:]].//g')
+   STANDARD_NAME=$(echo "$PREUN"| sed 's/\W//g')
+   echo $STANDARD_NAME
  fi
  echo '%preun'  >> $NEWSPEC_FILE
  echo case '"$1"' in  >> $NEWSPEC_FILE
  echo '  0)'            >> $NEWSPEC_FILE
- echo '      # This is an un-install.' >> $NEWSPEC_FILE
- echo '      rm' "$APP_DIR/$STANDARD_NAME-current"  >> $NEWSPEC_FILE
+ echo '      echo "This is from preun value 0: $1"' >> $NEWSPEC_FILE
  echo '   ;;' >> $NEWSPEC_FILE
  echo '  1)'  >> $NEWSPEC_FILE
- echo   '    # This is an upgrade.'  >> $NEWSPEC_FILE
- echo   '    # First stop service.'  >> $NEWSPEC_FILE
+ echo '      echo "This is from preun value 1: $1"' >> $NEWSPEC_FILE
  echo '   ;;'  >> $NEWSPEC_FILE
  echo esac >> $NEWSPEC_FILE
 }
 
+function CreatePre()
+{
+ PRE=$1
+ if [ ${PRE:0:3} = "jre" ]
+ then  
+   STANDARD_NAME=${PRE:0:3}
+ else
+   STANDARD_NAME=$(echo "$PRE"| sed 's/\W//g')
+   echo $STANDARD_NAME
+ fi
+ echo '%pre'  >> $NEWSPEC_FILE
+ echo case '"$1"' in  >> $NEWSPEC_FILE
+ echo '  1)'            >> $NEWSPEC_FILE
+ echo '      echo "This is from pre value 1: $1"' >> $NEWSPEC_FILE
+ echo '      echo "Creating user account jira.."' >> $NEWSPEC_FILE
+ echo '      useradd -m -r -d /home/jira -s /bin/false jira' >> $NEWSPEC_FILE
+ echo '   ;;' >> $NEWSPEC_FILE
+ echo '  2)'  >> $NEWSPEC_FILE
+ echo '      echo "This is from pre value 2: $1"' >> $NEWSPEC_FILE
+ echo '      echo "Shutting down Jira server.."' >> $NEWSPEC_FILE
+ echo "      $APP_DIR/*-current/bin/shutdown.sh" >> $NEWSPEC_FILE
+ echo '      sleep 10' >> $NEWSPEC_FILE
+ echo '      rm ' "$APP_DIR/*-current"  >> $NEWSPEC_FILE
+ echo '   ;;'  >> $NEWSPEC_FILE
+ echo esac >> $NEWSPEC_FILE
+}
 
 Extract
 
 for i in $(ls -1)
 do 
   if [[ -d "$i" ]]; then 
-    CleanUp
+    CleanUp "$i"
     CreateSpec
     CreateSource "$i"
     CreateValue "$i"
@@ -175,9 +221,13 @@ do
     echo                   >> $NEWSPEC_FILE
     cat files              >> $NEWSPEC_FILE
     echo                   >> $NEWSPEC_FILE
+    CreatePre "$i"
+    echo                   >> $NEWSPEC_FILE
     CreatePreUn "$i"
     echo                   >> $NEWSPEC_FILE
     CreatePost "$i"
+    echo                   >> $NEWSPEC_FILE
+    CreatePostUn "$i"
     CreateTar "$i"
   else 
     continue;
