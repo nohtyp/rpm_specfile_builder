@@ -232,9 +232,15 @@ do
     CreateSpec
     CreateSource "$i"
     CreateValue "$i"
-    echo '%install' > install_dirs;for g in $(find "$i" -type d);do echo 'install -d -m 0755 $RPM_BUILD_ROOT'"$APP_DIR"'/'"$g" >> install_dirs;done
-    for h in $(find "$i" -type f);do echo "install -m 0755 "'$RPM_BUILD_DIR/'"'$h'" '$RPM_BUILD_ROOT'"$APP_DIR"'/'"'$h'" >> install_dirs;done
-    echo "%files" > files;for j in $(find "$i" -type d);do echo "$APP_DIR/$j" >> files;done
+    if [ $(echo $i | awk -F '-' '{print NF}') -eq 2 ]
+    then
+      export USER=$(echo $i | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g')
+    else
+      export USER=$(echo $i | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g' | awk -F '-' '{print $2}')
+    fi
+    echo '%install' > install_dirs;for g in $(find "$i" -type d);do echo 'install -d -m 0755 $RPM_BUILD_ROOT'"$APP_DIR/$USER"'/'"$g" >> install_dirs;done
+    for h in $(find "$i" -type f);do echo "install -m 0755 "'$RPM_BUILD_DIR/'"'$h'" '$RPM_BUILD_ROOT'"$APP_DIR/$USER"'/'"'$h'" >> install_dirs;done
+    echo "%files" > files;for j in $(find "$i" -type d);do echo "$APP_DIR/$USER/$j" >> files;done
     echo                   >> $NEWSPEC_FILE
     CreateName "$i"
     CreateVersion "$i"
