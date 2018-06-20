@@ -12,7 +12,12 @@ LICENSE=$LICENSE
 function CreateValue()
 {
   MyVal=$1
-  export VALUE=`echo $MyVal|sed 's/^[a-z-]*//'|sed 's/^[0-9.-]*//'`
+  if [ $(echo $MyVal | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g') = "atlassian-jira-software" ]
+  then
+    export VALUE=`echo $MyVal |sed 's/^[a-z-]*//'|sed 's/^[0-9.-]*//'`
+  else
+    export VALUE=`echo $MyVal |sed 's/^[a-z-]*//'`
+  fi
 }
 
 function CreateSpec()
@@ -39,11 +44,11 @@ function CreateSource()
 function CreateSetup()
 {
   MySetUp=$1
-  if [ ${MySetUp:0:3} = "jre" ]
+  if [ $(echo $MyVal | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g') = "atlassian-jira-software" ]
   then
-    echo %setup -n %{name}%{version} >> $NEWSPEC_FILE
-  else
     echo %setup -n %{name}-%{version}-"${VALUE}" >> $NEWSPEC_FILE
+  else
+    echo %setup -n %{name}-%{version} >> $NEWSPEC_FILE
   fi
 }
 
@@ -51,11 +56,19 @@ function Extract()
 {
   for z in $(ls -1)
   do
+    echo "$z"
     if [ -f "$z" ] && [ "${z: -4}" = ".tar" ] || [ "${z: -7}" = ".tar.gz" ]
     then
       echo "Un-tarring file $z in $(pwd)"
       tar -xvf "$z"
       rm "$z"
+    elif [ -f "$z" ] && [ "${z: -4}" = ".zip" ]
+    then
+      echo "Un-zipping file $z in $(pwd)"
+      unzip "$z"
+      rm "$z"
+    else
+      echo "$z is not a file that can be unpacked.."
     fi
   done
 }
@@ -103,16 +116,24 @@ function CreatePost()
  else
    STANDARD_NAME=$(echo "$POST"| sed 's/\W//g')
  fi
+ 
+ if [ $(echo $POST | awk -F '-' '{print NF}') -eq 2 ]
+ then
+   export USER=$(echo $POST | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g')
+ else
+   export USER=$(echo $POST | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g' | awk -F '-' '{print $2}')
+ fi
+ 
  echo '%post'  >> $NEWSPEC_FILE
  echo case '"$1"' in  >> $NEWSPEC_FILE
  echo '  1)'            >> $NEWSPEC_FILE
  echo '      echo "This is from post value 1: $1"' >> $NEWSPEC_FILE
- echo '      echo "Creating user for jira"' >> $NEWSPEC_FILE
- echo '      ln -s '"$APP_DIR/$POST" "$APP_DIR/$STANDARD_NAME-current"  >> $NEWSPEC_FILE
+ echo "      echo Creating user for $USER" >> $NEWSPEC_FILE
+ echo '      ln -s '"$APP_DIR/$POST" "$APP_DIR/current"  >> $NEWSPEC_FILE
  echo '   ;;' >> $NEWSPEC_FILE
  echo '  2)'  >> $NEWSPEC_FILE
  echo '      echo "This is from post value 2: $1"' >> $NEWSPEC_FILE
- echo '      ln -s '"$APP_DIR/$POST" "$APP_DIR/$STANDARD_NAME-current"  >> $NEWSPEC_FILE
+ echo '      ln -s '"$APP_DIR/$POST" "$APP_DIR/current"  >> $NEWSPEC_FILE
  echo '   ;;'  >> $NEWSPEC_FILE
  echo esac >> $NEWSPEC_FILE
 }
@@ -170,24 +191,39 @@ function CreatePre()
    STANDARD_NAME=$(echo "$PRE"| sed 's/\W//g')
    echo $STANDARD_NAME
  fi
+ 
+ if [ $(echo $PRE | awk -F '-' '{print NF}') -eq 2 ]
+ then
+   export USER=$(echo $PRE | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g')
+ else
+   export USER=$(echo $PRE | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g' | awk -F '-' '{print $2}')
+ fi
+ 
  echo '%pre'  >> $NEWSPEC_FILE
  echo case '"$1"' in  >> $NEWSPEC_FILE
  echo '  1)'            >> $NEWSPEC_FILE
  echo '      echo "This is from pre value 1: $1"' >> $NEWSPEC_FILE
- echo '      echo "Creating user account jira.."' >> $NEWSPEC_FILE
- echo '      useradd -m -r -d /home/jira -s /bin/false jira' >> $NEWSPEC_FILE
+ if [ ${PRE:0:3} = "jre" ]
+ then
+   continue
+ else
+ echo "      echo Creating user account $USER.." >> $NEWSPEC_FILE
+ echo "      useradd -m -r -d /home/$USER -s /bin/false $USER" >> $NEWSPEC_FILE 
+ fi
  echo '   ;;' >> $NEWSPEC_FILE
  echo '  2)'  >> $NEWSPEC_FILE
  echo '      echo "This is from pre value 2: $1"' >> $NEWSPEC_FILE
- echo '      echo "Shutting down Jira server.."' >> $NEWSPEC_FILE
- echo "      $APP_DIR/*-current/bin/shutdown.sh" >> $NEWSPEC_FILE
+ echo "      echo Shutting down $USER server.." >> $NEWSPEC_FILE
+ echo "      $APP_DIR/current/bin/shutdown.sh" >> $NEWSPEC_FILE
  echo '      sleep 10' >> $NEWSPEC_FILE
- echo '      rm ' "$APP_DIR/*-current"  >> $NEWSPEC_FILE
+ echo '      rm ' "$APP_DIR/current"  >> $NEWSPEC_FILE
  echo '   ;;'  >> $NEWSPEC_FILE
  echo esac >> $NEWSPEC_FILE
 }
 
 Extract
+echo "This is IFS before the changes $IFS"
+export IFS=$'\n'
 
 for i in $(ls -1)
 do 
@@ -215,7 +251,6 @@ do
     echo '%prep'           >> $NEWSPEC_FILE
     echo                   >> $NEWSPEC_FILE
     CreateSetup "$i"
-    #echo %setup -n %{name}-%{version}-"${VALUE}" >> $NEWSPEC_FILE
     echo                   >> $NEWSPEC_FILE
     cat install_dirs       >> $NEWSPEC_FILE
     echo                   >> $NEWSPEC_FILE
@@ -230,6 +265,6 @@ do
     CreatePostUn "$i"
     CreateTar "$i"
   else 
-    continue;
+    continue
   fi
 done
