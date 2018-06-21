@@ -124,18 +124,24 @@ function CreatePost()
    export USER=$(echo $POST | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g' | awk -F '-' '{print $2}')
  fi
  
- echo '%post'  >> $NEWSPEC_FILE
- echo case '"$1"' in  >> $NEWSPEC_FILE
- echo '  1)'            >> $NEWSPEC_FILE
- echo '      echo "This is from post value 1: $1"' >> $NEWSPEC_FILE
- echo "      echo Creating user for $USER" >> $NEWSPEC_FILE
- echo '      ln -s '"$APP_DIR/$USER/$POST" "$APP_DIR/$USER/current"  >> $NEWSPEC_FILE
- echo '   ;;' >> $NEWSPEC_FILE
- echo '  2)'  >> $NEWSPEC_FILE
- echo '      echo "This is from post value 2: $1"' >> $NEWSPEC_FILE
- echo '      ln -s '"$APP_DIR/$USER/$POST" "$APP_DIR/$USER/current"  >> $NEWSPEC_FILE
- echo '   ;;'  >> $NEWSPEC_FILE
- echo esac >> $NEWSPEC_FILE
+ echo '%post'                                                                          >> $NEWSPEC_FILE
+ echo case '"$1"' in                                                                   >> $NEWSPEC_FILE
+ echo '  1)'                                                                           >> $NEWSPEC_FILE
+ echo "      if [ -L "$APP_DIR/$USER/current" ]"                                       >> $NEWSPEC_FILE
+ echo '      then'                                                                     >> $NEWSPEC_FILE
+ echo '        echo The symbolic link previously create..Recreating old symlink'       >> $NEWSPEC_FILE
+ echo '        rm ' "$APP_DIR/$USER/current"                                           >> $NEWSPEC_FILE
+ echo '        ln -s '"$APP_DIR/$USER/$POST" "$APP_DIR/$USER/current"                  >> $NEWSPEC_FILE
+ echo '      else'                                                                     >> $NEWSPEC_FILE
+ echo '        echo "This is from post value 1: $1"'                                   >> $NEWSPEC_FILE
+ echo '        ln -s '"$APP_DIR/$USER/$POST" "$APP_DIR/$USER/current"                  >> $NEWSPEC_FILE 
+ echo '      fi'                                                                       >> $NEWSPEC_FILE
+ echo '   ;;'                                                                          >> $NEWSPEC_FILE
+ echo '  2)'                                                                           >> $NEWSPEC_FILE
+ echo '      echo "This is from post value 2: $1"'                                     >> $NEWSPEC_FILE
+ echo '      ln -s '"$APP_DIR/$USER/$POST" "$APP_DIR/$USER/current"                    >> $NEWSPEC_FILE
+ echo '   ;;'                                                                          >> $NEWSPEC_FILE
+ echo esac                                                                             >> $NEWSPEC_FILE
 }
 
 
@@ -199,26 +205,30 @@ function CreatePre()
    export USER=$(echo $PRE | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g' | awk -F '-' '{print $2}')
  fi
  
- echo '%pre'  >> $NEWSPEC_FILE
- echo case '"$1"' in  >> $NEWSPEC_FILE
- echo '  1)'            >> $NEWSPEC_FILE
- echo '      echo "This is from pre value 1: $1"' >> $NEWSPEC_FILE
+ echo '%pre'                                                                           >> $NEWSPEC_FILE
+ echo case '"$1"' in                                                                   >> $NEWSPEC_FILE
+ echo '  1)'                                                                           >> $NEWSPEC_FILE
+ echo '      echo "This is from pre value 1: $1"'                                      >> $NEWSPEC_FILE
  if [ ${PRE:0:3} = "jre" ]
  then
    continue
- else
- echo "      echo Creating user account $USER.." >> $NEWSPEC_FILE
- echo "      useradd -m -r -d /home/$USER -s /bin/false $USER" >> $NEWSPEC_FILE 
  fi
- echo '   ;;' >> $NEWSPEC_FILE
- echo '  2)'  >> $NEWSPEC_FILE
- echo '      echo "This is from pre value 2: $1"' >> $NEWSPEC_FILE
- echo "      echo Shutting down $USER server.." >> $NEWSPEC_FILE
- echo "      $APP_DIR/$USER/current/bin/shutdown.sh" >> $NEWSPEC_FILE
- echo '      sleep 10' >> $NEWSPEC_FILE
- echo '      rm ' "$APP_DIR/$USER/current"  >> $NEWSPEC_FILE
- echo '   ;;'  >> $NEWSPEC_FILE
- echo esac >> $NEWSPEC_FILE
+ echo "      if [ \$(grep $USER /etc/passwd | awk -F ':' '{print \$1}') == $USER ]"    >> $NEWSPEC_FILE
+ echo '      then'                                                                     >> $NEWSPEC_FILE
+ echo "        echo "User $USER was previously created..""                             >> $NEWSPEC_FILE
+ echo '      else'                                                                     >> $NEWSPEC_FILE
+ echo "        echo "Creating user account $USER..""                                   >> $NEWSPEC_FILE
+ echo "        useradd -m -r -d /home/$USER -s /bin/false $USER"                       >> $NEWSPEC_FILE 
+ echo '      fi'                                                                       >> $NEWSPEC_FILE
+ echo '   ;;'                                                                          >> $NEWSPEC_FILE
+ echo '  2)'                                                                           >> $NEWSPEC_FILE
+ echo '      echo "This is from pre value 2: $1"'                                      >> $NEWSPEC_FILE
+ echo "      echo "Shutting down $USER server..""                                      >> $NEWSPEC_FILE
+ echo "      $APP_DIR/$USER/current/bin/shutdown.sh"                                   >> $NEWSPEC_FILE
+ echo '      sleep 10'                                                                 >> $NEWSPEC_FILE
+ echo '      rm ' "$APP_DIR/$USER/current"                                             >> $NEWSPEC_FILE
+ echo '   ;;'                                                                          >> $NEWSPEC_FILE
+ echo esac                                                                             >> $NEWSPEC_FILE
 }
 
 Extract
