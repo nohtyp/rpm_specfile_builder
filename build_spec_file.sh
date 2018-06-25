@@ -16,6 +16,7 @@ function CreateValue()
   then
     export VALUE=`echo $MyVal |sed 's/^[a-z-]*//'|sed 's/^[0-9.-]*//'`
   else
+    echo "This is MyVal: $MyVal"
     export VALUE=`echo $MyVal |sed 's/^[a-z-]*//'`
   fi
 }
@@ -38,6 +39,7 @@ function CleanUp()
 function CreateSource()
 {
   MySource=$1
+  echo "$MySource.tar is the file name"
   export SOURCE="$MySource".tar
 }
 
@@ -73,14 +75,28 @@ function Extract()
   done
 }
 
+
+function CheckJRE()
+{
+  for mydir in $(ls -1)
+  do
+    if [ ${mydir:0:3} = "jre" ] && [ -d "$mydir" ]
+    then
+      echo "Renaming file"
+      export MYTAR=$(echo $mydir | sed 's/jre/jre-/g')
+      mv $mydir $MYTAR
+      echo "moved $mydir to $MYTAR"
+    fi
+  done
+}
+
 function CreateTar()
 {
   TAR_CREATE=$1
-  echo "Tarring up file $TAR_CREATE"
-  tar -cf $TAR_CREATE.tar $TAR_CREATE
-  echo "Moving $TAR_CREATE.tar to $SOURCE_DIR"
-  mv -f $TAR_CREATE.tar $SOURCE_DIR
-
+    echo "Tarring up file $TAR_CREATE"
+    tar -cf $TAR_CREATE.tar $TAR_CREATE
+    echo "Moving $TAR_CREATE.tar to $SOURCE_DIR"
+    mv -f $TAR_CREATE.tar $SOURCE_DIR
 }
 
 function CreateName()
@@ -156,10 +172,13 @@ function CreatePostUn()
  fi
  echo '%postun'  >> $NEWSPEC_FILE
  echo case '"$1"' in  >> $NEWSPEC_FILE
- echo '  1)'            >> $NEWSPEC_FILE
- echo '      echo "This is postun value 1: $1"' >> $NEWSPEC_FILE
+ echo '  0)'            >> $NEWSPEC_FILE
+ echo '      echo "This is postun value 0: $1"' >> $NEWSPEC_FILE
  echo '   ;;' >> $NEWSPEC_FILE
- echo '  2)'  >> $NEWSPEC_FILE
+ echo '  1)'  >> $NEWSPEC_FILE
+ echo '      echo "This is postun value 1: $1"' >> $NEWSPEC_FILE
+ echo '   ;;'  >> $NEWSPEC_FILE
+ echo '  2)'   >> $NEWSPEC_FILE
  echo '      echo "This is postun value 2: $1"' >> $NEWSPEC_FILE
  echo '   ;;'  >> $NEWSPEC_FILE
  echo esac >> $NEWSPEC_FILE
@@ -184,6 +203,9 @@ function CreatePreUn()
  echo '  1)'  >> $NEWSPEC_FILE
  echo '      echo "This is from preun value 1: $1"' >> $NEWSPEC_FILE
  echo '   ;;'  >> $NEWSPEC_FILE
+ echo '  2)'  >> $NEWSPEC_FILE
+ echo '      echo "This is from preun value 2: $1"' >> $NEWSPEC_FILE
+ echo '   ;;'  >> $NEWSPEC_FILE
  echo esac >> $NEWSPEC_FILE
 }
 
@@ -205,48 +227,59 @@ function CreatePre()
    export USER=$(echo $PRE | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g' | awk -F '-' '{print $2}')
  fi
  
- echo '%pre'                                                                           >> $NEWSPEC_FILE
- echo case '"$1"' in                                                                   >> $NEWSPEC_FILE
- echo '  1)'                                                                           >> $NEWSPEC_FILE
- echo '      echo "This is from pre value 1: $1"'                                      >> $NEWSPEC_FILE
  if [ ${PRE:0:3} = "jre" ]
  then
-   continue
- fi
- echo "      if [ \$(grep $USER /etc/passwd | awk -F ':' '{print \$1}') == $USER ]"    >> $NEWSPEC_FILE
- echo '      then'                                                                     >> $NEWSPEC_FILE
- echo "        echo "User $USER was previously created..""                             >> $NEWSPEC_FILE
- echo '      else'                                                                     >> $NEWSPEC_FILE
- echo "        echo "Creating user account $USER..""                                   >> $NEWSPEC_FILE
- echo "        useradd -m -r -d /home/$USER -s /bin/false $USER"                       >> $NEWSPEC_FILE 
- echo '      fi'                                                                       >> $NEWSPEC_FILE
- echo '   ;;'                                                                          >> $NEWSPEC_FILE
- echo '  2)'                                                                           >> $NEWSPEC_FILE
- echo '      echo "This is from pre value 2: $1"'                                      >> $NEWSPEC_FILE
- echo "      echo "Shutting down $USER server..""                                      >> $NEWSPEC_FILE
- echo "      $APP_DIR/$USER/current/bin/shutdown.sh"                                   >> $NEWSPEC_FILE
- echo '      sleep 10'                                                                 >> $NEWSPEC_FILE
- echo '      rm ' "$APP_DIR/$USER/current"                                             >> $NEWSPEC_FILE
- echo '   ;;'                                                                          >> $NEWSPEC_FILE
- echo esac                                                                             >> $NEWSPEC_FILE
+   echo '%pre'                                                                           >> $NEWSPEC_FILE
+   echo case '"$1"' in                                                                   >> $NEWSPEC_FILE
+   echo '  1)'                                                                           >> $NEWSPEC_FILE
+   echo '      echo "This is from pre value 1: $1"'                                      >> $NEWSPEC_FILE
+   echo '   ;;'                                                                          >> $NEWSPEC_FILE
+   echo '  2)'                                                                           >> $NEWSPEC_FILE
+   echo '      echo "This is from pre value 2: $1"'                                      >> $NEWSPEC_FILE
+   echo '      rm ' "$APP_DIR/$USER/current"                                             >> $NEWSPEC_FILE
+   echo '   ;;'                                                                          >> $NEWSPEC_FILE
+   echo esac                                                                             >> $NEWSPEC_FILE
+ else
+   echo '%pre'                                                                           >> $NEWSPEC_FILE
+   echo case '"$1"' in                                                                   >> $NEWSPEC_FILE
+   echo '  1)'                                                                           >> $NEWSPEC_FILE
+   echo '      echo "This is from pre value 1: $1"'                                      >> $NEWSPEC_FILE
+   echo "      if [ \$(grep $USER /etc/passwd | awk -F ':' '{print \$1}') == $USER ]"    >> $NEWSPEC_FILE
+   echo '      then'                                                                     >> $NEWSPEC_FILE
+   echo "        echo "User $USER was previously created..""                             >> $NEWSPEC_FILE
+   echo '      else'                                                                     >> $NEWSPEC_FILE
+   echo "        echo "Creating user account $USER..""                                   >> $NEWSPEC_FILE
+   echo "        useradd -m -r -d /home/$USER -s /bin/false $USER"                       >> $NEWSPEC_FILE 
+   echo '      fi'                                                                       >> $NEWSPEC_FILE
+   echo '   ;;'                                                                          >> $NEWSPEC_FILE
+   echo '  2)'                                                                           >> $NEWSPEC_FILE
+   echo '      echo "This is from pre value 2: $1"'                                      >> $NEWSPEC_FILE
+   echo "      echo "Shutting down $USER server..""                                      >> $NEWSPEC_FILE
+   echo "      $APP_DIR/$USER/current/bin/shutdown.sh"                                   >> $NEWSPEC_FILE
+   echo '      sleep 10'                                                                 >> $NEWSPEC_FILE
+   echo '      rm ' "$APP_DIR/$USER/current"                                             >> $NEWSPEC_FILE
+   echo '   ;;'                                                                          >> $NEWSPEC_FILE
+   echo esac                                                                             >> $NEWSPEC_FILE
+ fi  
 }
 
 Extract
+CheckJRE
 echo "This is IFS before the changes $IFS"
 export IFS=$'\n'
 
 for i in $(ls -1)
 do 
-  if [[ -d "$i" ]]; then 
+  if [[ -d "$i" ]]; then
     CleanUp "$i"
     CreateSpec
     CreateSource "$i"
     CreateValue "$i"
-    if [ $(echo $i | awk -F '-' '{print NF}') -eq 2 ]
+    if [ $(echo "$i" | awk -F '-' '{print NF}') -eq 2 ]
     then
-      export USER=$(echo $i | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g')
+      export USER=$(echo "$i" | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g')
     else
-      export USER=$(echo $i | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g' | awk -F '-' '{print $2}')
+      export USER=$(echo "$i" | sed 's/[a-z-]*$//g' |sed 's/-[[:digit:]].*//g' | awk -F '-' '{print $2}')
     fi
     echo '%install' > install_dirs;for g in $(find "$i" -type d);do echo 'install -d -m 0755 $RPM_BUILD_ROOT'"$APP_DIR/$USER"'/'"$g" >> install_dirs;done
     for h in $(find "$i" -type f);do echo "install -m 0755 "'$RPM_BUILD_DIR/'"'$h'" '$RPM_BUILD_ROOT'"$APP_DIR/$USER"'/'"'$h'" >> install_dirs;done
